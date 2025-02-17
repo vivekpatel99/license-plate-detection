@@ -1,0 +1,17 @@
+
+DATASET:
+  DATASET_DIR: 'datasets'
+  DATASET_NAME: 'License-Plate-Recognition-8'
+  ANNOTATION_FILE_NAME: '_annotations.csv'
+  BONE_FRACTURE_DETECTION_DATASET_URL: 'https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e/dataset/8#'
+
+DATASET_DIRS:
+  TRAIN_DIR: ${DATASET.DATASET_DIR}/${DATASET.DATASET_NAME}/train/
+  VALIDATION_DIR: ${DATASET.DATASET_DIR}/${DATASET.DATASET_NAME}/valid
+  TEST_DIR: ${DATASET.DATASET_DIR}/${DATASET.DATASET_NAME}/test
+
+TRAIN:
+  BATCH_SIZE: 16
+  NUM_EPOCHS: 10
+  LEARNING_RATE: 0.0001
+  IMG_SIZE: 224
