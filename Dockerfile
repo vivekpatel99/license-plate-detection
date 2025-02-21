@@ -46,6 +46,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ENV VIRTUAL_ENV="/code/.venv" 
 ENV PATH="/root/.local/bin/:$PATH"
 
+# Set environment variable to enable dynamic GPU memory allocation
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+ENV CUDA_VISIBLE_DEVICES=0
+
 COPY pyproject.toml /opt/
 RUN uv sync --active 
 

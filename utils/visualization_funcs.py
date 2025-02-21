@@ -15,14 +15,17 @@ def plot_random_images_bbox(*, image_paths:np.ndarray, class_ids:np.ndarray, bbo
   for i, idx in enumerate(random_samples):
     ax = fig.add_subplot(3, 3, i+1)
     image = image_paths[idx]
+    img_height, img_width, _ = image.shape
     if not isinstance(image, np.ndarray):
       image = cv2.imread(image)
       image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-
-    xmin, ymin, xmax, ymax = convert_coordinates_for_plot(image, bboxes[idx], plot=True)
-
-    ax.set_title(class_map[class_ids[idx]])
+    [x_min, y_min, x_max, y_max] = bboxes[idx][0]
+   
+    coords  = convert_coordinates_for_plot(img_height=img_height, img_width=img_width, bbox= [x_min, y_min, x_max, y_max], plot=True)
+    ymin, xmin, ymax, xmax = coords[0]
+    # print(class_ids[idx])
+    ax.set_title(class_ids[idx])
     ax.axis('off')
     cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 1)
     plt.imshow(image)

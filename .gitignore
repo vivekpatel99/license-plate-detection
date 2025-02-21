@@ -172,3 +172,7 @@ cython_debug/
 .zip
 datasets/
 ssd_resnet50_v1_fpn_640x640_coco17_tpu-8/
+exported_models/
+output
+.tar.gz
+.gz

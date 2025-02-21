@@ -1,6 +1,6 @@
 {
 	// For quick reference: https://containers.dev/implementors/json_reference/
-	"name": "brain-tumor-detection",
+	"name": "license-plate-recognition",
 	// "image": "tensorflow/tensorflow:latest-gpu-jupyter",
 	"build": {
 		"context": "..",

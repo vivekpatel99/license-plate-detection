@@ -2,24 +2,33 @@
 import numpy as np
 
 
-def convert_coordinates_for_plot(image, bbox, plot=False):
-  x_center, y_center, width, height = bbox
+def convert_coordinates_for_plot(*,img_height, img_width, bbox, plot=False)->  np.ndarray:
+  """
+  Convert bounding box coordinates to normalized values
+  between 0 and 1.
 
-  xmin = x_center - (width / 2)   
-  ymin = y_center - (height / 2)
-  xmax = x_center + (width / 2) 
-  ymax = y_center + (height / 2) 
+  Args:
+    img_height (int): Height of the image.
+    img_width (int): Width of the image.
+    bbox (list): Bounding box coordinates in the format [x_min, y_min, x_max, y_max].
+    plot (bool, optional): Whether to plot the bounding box or not. Defaults to False.
+
+  Returns:
+    np.ndarray: Normalized bounding box coordinates in the format [[y_min, x_min, y_max, x_max]].
+  """
+  # Normalize bounding box coordinates
+  xmin = bbox[0] / img_width
+  ymin = bbox[1] / img_height
+  xmax = bbox[2] / img_width
+  ymax = bbox[3] / img_height
 
   if plot:
-    img_height, img_width = image.shape[:2]
-    # xmin = int(max(0, xmin * img_width))  # Clip to 0
-    # ymin = int(max(0, ymin * img_height)) # Clip to 0
-    # xmax = int(min(img_width, xmax * img_width)) # Clip to image width
-    # ymax = int(min(img_height, ymax * img_height))# Clip to image height
-    xmin = int(xmin * img_width) # Clip to 0
-    ymin = int(ymin * img_height)# Clip to 0
-    xmax =  int (xmax * img_width) # Clip to image width
-    ymax =  int(ymax * img_height)# Clip to image height
+    """
+    Clip the bounding box coordinates to the image boundaries.
+    """
+    xmin = int(max(0, xmin * img_width))  # Clip to 0
+    ymin = int(max(0, ymin * img_height)) # Clip to 0
+    xmax = int(min(img_width, xmax * img_width)) # Clip to image width
+    ymax = int(min(img_height, ymax * img_height))# Clip to image height
 
-
-  return [xmin, ymin, xmax, ymax]#.reshape(1, 4)
+  return np.array([[ymin, xmin, ymax, xmax]]) #.reshape(1, 4)
