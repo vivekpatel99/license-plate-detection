@@ -13,8 +13,20 @@
 	// 3. Use 'runArgs' to pass arguments to the container. 
 	// run the container with all GPUs
 	"runArgs": [
+		"--privileged",
 		"--gpus",
-		"all"
+		"all",
+		"--ulimit",
+		"memlock=-1:-1",
+		"--ulimit",
+		"nofile=65536:65536",
+		"--cap-add=SYS_PTRACE",
+		"--security-opt",
+		"seccomp=unconfined"
+		// "-e",
+		// "USER_UID=$(id -u)",W
+		// "-e",
+		// "USER_GID=$(id -g)",
 	],
 	// 4. Features to add to the Dev Container. More info: https://containers.dev/implementors/features.
 	"features": {
@@ -24,9 +36,9 @@
 			"configureZshAsDefaultShell": "true",
 			"installOhMyZsh": "false",
 			"installOhMyZshConfig": "false",
-			"username": "vscode",
-			"userUid": "1000",
-			"userGid": "1000",
+			// "username": "vscode",
+			// "userUid": "1000",
+			// "userGid": "1000",
 			"upgradePackages": "true"
 		},
 		// Python with uv, Ruff, Mypy, MonkeyType and Bandit, installed using pipx
@@ -69,15 +81,15 @@
 		}
 	},
 	// 6. Set `remoteUser` to `root` to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-	"remoteUser": "vscode",
-	"updateRemoteUserUID": false
+	"remoteUser": "root",
+	"updateRemoteUserUID": true,
 	// the following commands are related to container lifecylce. More info: https://containers.dev/implementors/json_reference/#lifecycle-scripts
 	// 7. Use 'initializeCommand' to run commands ON THE HOST before container is created or started.
 	// "initializeCommand": "",
 	// 8. Use 'onCreateCommand' to run commands INSIDE THE CONTAINER after it started for the first time.
 	// for the nvida containers, sh points to sh-wrap. We want it to point to dash
 	// https://wiki.debian.org/Shell
-	// "onCreateCommand": "uv sync --active",
+	// "onCreateCommand": "sudo chown -R $USER:$USER /code",
 	// 9. Use 'updateContentCommand' to run commands if the root filetree have any changes, during container creation.
 	// "updateContentCommand": "",
 	// 10. Use 'postCreateCommand' to run commands after the container is created.

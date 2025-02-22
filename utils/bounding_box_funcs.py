@@ -31,4 +31,4 @@ def convert_coordinates_for_plot(*,img_height, img_width, bbox, plot=False)->  n
     xmax = int(min(img_width, xmax * img_width)) # Clip to image width
     ymax = int(min(img_height, ymax * img_height))# Clip to image height
 
-  return np.array([[ymin, xmin, ymax, xmax]]) #.reshape(1, 4)
+  return [ymin, xmin, ymax, xmax] #.reshape(1, 4)

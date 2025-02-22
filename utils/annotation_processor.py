@@ -68,31 +68,27 @@ class AnnotationProcessor:
                     continue  # Skip to the next image
 
                 image_annotations = self.df[self.df['filename'] == image_name]  # Get annotations for this image
-      
+                labels = []
+                cords = []
                 for _, row in image_annotations.iterrows():
                     x_min = int(row['xmin'])
                     y_min = int(row['ymin'])
                     x_max = int(row['xmax'])
                     y_max = int(row['ymax'])
-                    label = label_map[row['class']] 
-
                     img_width = int(row['width'])
                     img_height = int(row['height'])
 
                     # Normalize bounding box coordinates
-                    cords = convert_coordinates_for_plot(img_height=img_height, img_width=img_width, bbox = [x_min, y_min, x_max, y_max])
-    
-                    # normalized_boxes.append([x_min_norm, y_min_norm, x_max_norm, y_max_norm, label])  # Include label
-                self.images.append(img)
-                self.class_ids.append(label)
-                self.bboxes.append(cords)
-
-                    # Draw bounding box (optional, for visualization)
-                    # cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)  # Green box
-                    # cv2.putText(img, label, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
+                    converted_cords = convert_coordinates_for_plot(img_height=img_height, img_width=img_width, bbox = [x_min, y_min, x_max, y_max])
+                    labels.append(label_map[row['class']] )
+                    cords.append(converted_cords)
 
             except Exception as e:
                 print(f"Error processing image {image_name}: {e}")
+
+            self.class_ids.append(labels)
+            self.bboxes.append(np.array(cords))
+            self.images.append(img)
+
 
         return self.images, self.class_ids, self.bboxes
