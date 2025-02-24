@@ -7,6 +7,7 @@ FROM nvcr.io/nvidia/tensorflow:24.05-tf2-py3
 
 # Set DEBIAN_FRONTEND temporarily for build-time only
 ARG DEBIAN_FRONTEND=noninteractive
+
 # Set environment variable to enable dynamic GPU memory allocation
 ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 ENV TF_CPP_MIN_LOG_LEVEL 3

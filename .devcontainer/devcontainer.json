@@ -13,18 +13,10 @@
 	// 3. Use 'runArgs' to pass arguments to the container. 
 	// run the container with all GPUs
 	"runArgs": [
-		"--privileged",
 		"--gpus",
-		"all",
-		"--ulimit",
-		"memlock=-1:-1",
-		"--ulimit",
-		"nofile=65536:65536",
-		"--cap-add=SYS_PTRACE",
-		"--security-opt",
-		"seccomp=unconfined"
+		"all"
 		// "-e",
-		// "USER_UID=$(id -u)",W
+		// "USER_UID=$(id -u)",
 		// "-e",
 		// "USER_GID=$(id -g)",
 	],
