@@ -151,8 +151,7 @@ def main():
     gt_box_tensors = []
     for train_image, bbox in zip(train_images, train_bboxes):
         # convert training image to tensor, add batch dimension, and add to list
-        train_image_tensors.append(tf.expand_dims(
-            tf.convert_to_tensor(train_image, dtype=tf.float32)/255., axis=0))
+        train_image_tensors.append(tf.expand_dims(tf.convert_to_tensor(train_image/255., dtype=tf.float32), axis=0))
         
         # convert numpy array to tensor, then add to list
         gt_box_tensors.append(tf.convert_to_tensor(bbox, dtype=tf.float32))
@@ -168,10 +167,16 @@ def main():
     # Run a dummy image to generate the model variables
     # use the detection model's `preprocess()` method and pass a dummy image
     dummy_img = tf.zeros([1,cfg.TRAIN.IMG_SIZE,cfg.TRAIN.IMG_SIZE,3])
-    model.preprocess(dummy_img)
+    tmp_image, tmp_shapes = model.preprocess(dummy_img)
+
+    # run a prediction with the preprocessed image and shapes
+    tmp_prediction_dict = model.predict(tmp_image, tmp_shapes)
 
     # postprocess the predictions into final detections
-    last_tune_layer=len(model.trainable_variables)//4 #30
+    tmp_detections = model.postprocess(tmp_prediction_dict, tmp_shapes)
+
+    # postprocess the predictions into final detections
+    last_tune_layer=len(model.trainable_variables)//5 #30
     to_fine_tune = [model.trainable_variables[layer_num] for layer_num in range(last_tune_layer)]
 
     # # set the optimizer and pass in the learning_rate
