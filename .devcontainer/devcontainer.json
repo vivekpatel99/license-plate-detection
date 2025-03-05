@@ -68,13 +68,14 @@
 				"ms-toolsai.tensorboard",
 				"charliermarsh.ruff",
 				"VisualStudioExptTeam.vscodeintellicode",
-				"Codeium.codeium"
+				"Codeium.codeium",
+				"RSIP-Vision.nvidia-smi-plus"
 			]
 		}
 	},
 	// 6. Set `remoteUser` to `root` to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "root",
-	"updateRemoteUserUID": true,
+	"updateRemoteUserUID": true
 	// the following commands are related to container lifecylce. More info: https://containers.dev/implementors/json_reference/#lifecycle-scripts
 	// 7. Use 'initializeCommand' to run commands ON THE HOST before container is created or started.
 	// "initializeCommand": "",
