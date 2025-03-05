@@ -14,13 +14,13 @@ from pathlib import Path
 
 
 class AnnotationProcessor:
-    def __init__(self, annotation_file):
+    def __init__(self, annotation_file, image_size:int=640):
         self.annotation_file = annotation_file
         self.df = pd.read_csv(str(self.annotation_file))  # Assumes CSV format
         self.images = []
         self.class_ids = []
         self.bboxes = []
-        self.target_size = 640
+        self.target_size = image_size
 
     def load_image_into_numpy_array(self, path):
         """Load an image from file into a numpy array.
