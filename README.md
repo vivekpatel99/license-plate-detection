@@ -10,7 +10,7 @@ The project uses license plate detection datasets from [robolfow](https://univer
 
 ## 🚀 Key Features
 
-- [ssd_resnet50_v1_fpn_640x640](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz) 
+- Model used for transfer learning - [ssd_resnet50_v1_fpn_640x640](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz) 
 - 
 
 ## 🛠️ Technologies Used
