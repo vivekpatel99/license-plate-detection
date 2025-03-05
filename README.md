@@ -1,5 +1,5 @@
 # 🚗 License Plate Detection Project
-
+![alt text](readme-assets/dataset_overview.png)
 ## 📝 Project Overview
 
 The project uses license plate detection datasets from [robolfow](https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e).
@@ -39,4 +39,4 @@ The model training process is detailed in `02_model_training.ipynb` [notebook](l
 
 
 ## 📈 Results
-
+![alt text](readme-assets/training_result.png)

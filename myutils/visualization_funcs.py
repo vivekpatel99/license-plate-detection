@@ -4,7 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.bounding_box_funcs import convert_coordinates_for_plot
+from myutils.bounding_box_funcs import convert_coordinates_for_plot
 
 
 def plot_random_images_bbox(*, image_paths:np.ndarray, class_ids:np.ndarray, bboxes:np.ndarray, class_map:dict, NUM_IMAGES_DISPLAY:int=9) -> None:
@@ -14,7 +14,7 @@ def plot_random_images_bbox(*, image_paths:np.ndarray, class_ids:np.ndarray, bbo
 
   for i, idx in enumerate(random_samples):
     ax = fig.add_subplot(3, 3, i+1)
-    image = image_paths[idx]
+    image = image_paths[idx].numpy()
     img_height, img_width, _ = image.shape
     if not isinstance(image, np.ndarray):
       image = cv2.imread(image)

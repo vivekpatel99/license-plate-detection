@@ -9,7 +9,7 @@ from PIL import Image
 from six import BytesIO
 from tqdm.notebook import tqdm
 
-from utils.bounding_box_funcs import convert_coordinates_for_plot
+from myutils.bounding_box_funcs import convert_coordinates_for_plot
 from pathlib import Path
 
 
