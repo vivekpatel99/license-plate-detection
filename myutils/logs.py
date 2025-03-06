@@ -17,7 +17,7 @@ def get_console_handler() -> logging.StreamHandler:
 
     return console_handler
 
-def get_file_handler(log_file: str = "app.log") -> logging.FileHandler:
+def get_file_handler(log_file: str = "license-plate-recognition.log") -> logging.FileHandler:
     """Get file handler.
     Args:
         log_file: The path to the log file.

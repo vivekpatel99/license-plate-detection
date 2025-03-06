@@ -14,9 +14,9 @@ ENV TF_CPP_MIN_LOG_LEVEL 3
 ENV TF_FORCE_GPU_ALLOW_GROWTH=true
 ENV CUDA_VISIBLE_DEVICES=0
 
-RUN sudo apt-get update -y && \
-    sudo apt-get upgrade -y  \
-    && sudo apt-get install wget curl unzip git ffmpeg libsm6 libxext6 \
+RUN apt-get update -y && \
+    apt-get upgrade -y  \
+    && apt-get install wget curl unzip git ffmpeg libsm6 libxext6 \
     gpg-agent \
     python3-pip \
     python3-cairocffi \
@@ -39,7 +39,7 @@ RUN python3 -m pip install -U pip && pip install "protobuf<4"
 RUN protoc object_detection/protos/*.proto --python_out=.
 RUN cp object_detection/packages/tf2/setup.py ./
 
-RUN python3 -m pip install .
+RUN python3 -m pip install . 
 
 # Add object_detection to PYTHONPATH
 ENV PYTHONPATH $PYTHONPATH:/opt/models/research:/opt/models/research/object_detection

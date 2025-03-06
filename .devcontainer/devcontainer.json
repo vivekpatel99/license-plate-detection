@@ -14,11 +14,12 @@
 	// run the container with all GPUs
 	"runArgs": [
 		"--gpus",
-		"all"
-		// "-e",
-		// "USER_UID=$(id -u)",
-		// "-e",
-		// "USER_GID=$(id -g)",
+		"all",
+		"--ulimit",
+		"memlock=-1:-1",
+		"--ulimit",
+		"nofile=65536:65536",
+		"--ipc=host" // provide max shared memory or "--shm-size=24g"
 	],
 	// 4. Features to add to the Dev Container. More info: https://containers.dev/implementors/features.
 	"features": {
@@ -28,13 +29,15 @@
 			"configureZshAsDefaultShell": "true",
 			"installOhMyZsh": "false",
 			"installOhMyZshConfig": "false",
-			// "username": "vscode",
+			//"username": "vscode",
 			// "userUid": "1000",
 			// "userGid": "1000",
 			"upgradePackages": "true"
 		},
 		// Python with uv, Ruff, Mypy, MonkeyType and Bandit, installed using pipx
 		"ghcr.io/devcontainers/features/python:1": {
+			"version": "latest",
+			"installUserPackages": false,
 			"installTools": "true",
 			"toolsToInstall": "uv,ruff,mypy,MonkeyType,bandit"
 		},
@@ -50,7 +53,7 @@
 		"vscode": {
 			// Set *default* container specific settings.json values on container create.
 			"settings": {
-				"python.defaultInterpreterPath": "/code/.venv/bin/python",
+				"python.defaultInterpreterPath": "/opt/.venv/bin/python",
 				"terminal.integrated.shell.linux": "/bin/bash",
 				"terminal.integrated.defaultProfile.linux": "bash"
 			},

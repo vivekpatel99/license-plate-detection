@@ -2,7 +2,7 @@
 import numpy as np
 
 
-def convert_coordinates_for_plot(*,img_height, img_width, bbox, plot=False)->  np.ndarray:
+def convert_coordinates_for_plot(*,img_height, img_width, bbox, plot=False)->  list:
   """
   Convert bounding box coordinates to normalized values
   between 0 and 1.

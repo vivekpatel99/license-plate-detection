@@ -178,3 +178,5 @@ output
 *.gz
 C3W2_Assignment.ipynb
 mlruns/*
+_datasets
+ANPR-384/

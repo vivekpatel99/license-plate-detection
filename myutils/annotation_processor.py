@@ -1,4 +1,5 @@
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -7,14 +8,15 @@ import tensorflow as tf
 import tqdm
 from PIL import Image
 from six import BytesIO
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from myutils.bounding_box_funcs import convert_coordinates_for_plot
-from pathlib import Path
+from myutils.logs import get_logger
 
 
 class AnnotationProcessor:
     def __init__(self, annotation_file, image_size:int=640):
+        self.log = get_logger(__name__, log_level=logging.INFO)
         self.annotation_file = annotation_file
         self.df = pd.read_csv(str(self.annotation_file))  # Assumes CSV format
         self.images = []
@@ -63,7 +65,7 @@ class AnnotationProcessor:
         """
         uni_list = self.df['filename'].unique()
         # uni_list =list(self.df['filename'].unique())
-        for image_name in uni_list:  # Iterate over unique images
+        for image_name in tqdm(uni_list[:200]):  # Iterate over unique images
             image_path = image_dir / image_name  # Construct full image path
             try:
                 img = self.load_image_into_numpy_array(str(image_path))
@@ -83,35 +85,36 @@ class AnnotationProcessor:
                     original_width = int(row['width'])
                     original_height = int(row['height'])
 
-                    # Calculate scale factor # scale = min(640/600, 640/800) = min(1.067, 0.8) = 0.8
-                    scale = min(self.target_size / original_height, self.target_size / original_width)
+                    if original_height != self.target_size or original_width != self.target_size:
+                        # Calculate scale factor # scale = min(640/600, 640/800) = min(1.067, 0.8) = 0.8
+                        scale = min(self.target_size / original_height, self.target_size / original_width)
 
-                    # Calculate new dimensions 
-                    # new_height = 600 * 0.8 = 480
-                    # new_width = 800 * 0.8 = 640
-                    new_height = int(original_height * scale)
-                    new_width = int(original_width * scale)
-                    
-                    # Calculate padding
-                    # dy = (640 - 480) // 2 = 80
-                    # dx = (640 - 640) // 2 = 0
-                    dy = (self.target_size - new_height) // 2
-                    dx = (self.target_size - new_width) // 2
-                    
-                    # Adjust bounding box
-                    # resized_xmin = 200 * 0.8 + 0 = 160
-                    # resized_ymin = 150 * 0.8 + 80 = 200
-                    # resized_xmax = 400 * 0.8 + 0 = 320
-                    # resized_ymax = 300 * 0.8 + 80 = 320
+                        # Calculate new dimensions 
+                        # new_height = 600 * 0.8 = 480
+                        # new_width = 800 * 0.8 = 640
+                        new_height = int(original_height * scale)
+                        new_width = int(original_width * scale)
+                        
+                        # Calculate padding
+                        # dy = (640 - 480) // 2 = 80
+                        # dx = (640 - 640) // 2 = 0
+                        dy = (self.target_size - new_height) // 2
+                        dx = (self.target_size - new_width) // 2
+                        
+                        # Adjust bounding box
+                        # resized_xmin = 200 * 0.8 + 0 = 160
+                        # resized_ymin = 150 * 0.8 + 80 = 200
+                        # resized_xmax = 400 * 0.8 + 0 = 320
+                        # resized_ymax = 300 * 0.8 + 80 = 320
 
-                    resized_xmin = int(xmin * scale) + dx
-                    resized_ymin = int(ymin * scale) + dy
-                    resized_xmax = int(xmax * scale) + dx
-                    resized_ymax = int(ymax * scale) + dy
+                        xmin = int(xmin * scale) + dx
+                        ymin = int(ymin * scale) + dy
+                        xmax = int(xmax * scale) + dx
+                        ymax = int(ymax * scale) + dy
 
                     # Normalize bounding box coordinates
                     converted_cords = convert_coordinates_for_plot(img_height=self.target_size, img_width=self.target_size, 
-                                                                   bbox = [resized_xmin, resized_ymin, resized_xmax, resized_ymax])
+                                                                   bbox = [xmin, ymin, xmax, ymax])
                     labels.append(label_map[row['class']] )
                     cords.append(converted_cords)
 
@@ -119,8 +122,8 @@ class AnnotationProcessor:
                 self.bboxes.append(np.array(cords))
                 self.images.append(img)
             except Exception as e:
-                print(f"Error processing image {image_name}: {e}")
-
+                self.log.error(f"Processing image {image_name}: {e}")
+                
 
 
         return self.images, self.class_ids, self.bboxes

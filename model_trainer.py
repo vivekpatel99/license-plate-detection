@@ -1,33 +1,34 @@
 import tensorflow as tf
+
 tf.get_logger().setLevel('ERROR')
 tf.random.set_seed(42)
 
 # # https://www.tensorflow.org/guide/mixed_precision
 # tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-# import the label map utility module
-from object_detection.utils import label_map_util
+import logging
+import random
+from pathlib import Path
 
-# import module for reading and updating configuration files.
-from object_detection.utils import config_util
-
-# import module for visualization. use the alias `viz_utils`
-from object_detection.utils import visualization_utils as viz_utils
+import matplotlib.pyplot as plt
+import mlflow
+import numpy as np
+from dotenv import load_dotenv
+from hydra import compose, initialize
 
 # import module for building the detection model
 from object_detection.builders import model_builder
-from myutils.visualization_funcs import plot_random_images_bbox
+
+# import module for visualization. use the alias `viz_utils`
+# import module for reading and updating configuration files.
+# import the label map utility module
+from object_detection.utils import config_util, label_map_util
+from object_detection.utils import visualization_utils as viz_utils
+from tqdm.notebook import tqdm
+
 from myutils.annotation_processor import AnnotationProcessor
 from myutils.logs import get_logger
-import logging
-import numpy as np
-import matplotlib.pyplot as plt
-import mlflow
-from tqdm.notebook import tqdm
-from pathlib import Path
-from dotenv import load_dotenv
-import random
-from hydra import initialize, compose
+from myutils.visualization_funcs import plot_random_images_bbox
 
 # https://gist.github.com/bdsaglam/586704a98336a0cf0a65a6e7c247d248
 
@@ -56,14 +57,7 @@ EXPORTER_SCRIPT = Path(cfg.OUTPUTS.EXPORTER_SCRIPT)
 CHECKPOINT_PATH = Path(cfg.OUTPUTS.CHECKPOINT_PATH)
 CHECKPOINT_PATH.mkdir(parents=True, exist_ok=True)
 
-@tf.function(input_signature=[tf.TensorSpec(shape=[None, 640, 640, 3], dtype=tf.float32)])
-def detect_fn(input_tensor):
-    preprocessed_image, shapes = model.preprocess(input_tensor)
-    prediction_dict = model.predict(preprocessed_image, shapes)
 
-    # use the detection model's postprocess() method to get the the final detections
-    detections = model.postprocess(prediction_dict, shapes)
-    return detections
 
 # decorate with @tf.function for faster training 
 @tf.function
@@ -142,7 +136,7 @@ def build_model(num_classes:int, pretrain_model_path:Path):
     checkpoint.restore(save_path=checkpoint_path)
     return model
 
-def main():
+def main()->None:
     load_dotenv()
 
     log = get_logger(__name__, log_level=logging.INFO)
@@ -164,15 +158,6 @@ def main():
     valid_images, valid_class_ids, valid_bboxes  = prepare_valid_dataset.process_annotations(image_dir=VALIDATION_DIR, label_map=label_map)
     train_images.extend(valid_images), train_class_ids.extend(valid_class_ids), train_bboxes.extend(valid_bboxes)
 
-    # Assign the license plate class ID
-    class_id = 1
-
-    # define a dictionary describing license plate class
-    category_index = {class_id :
-    {'id'  : class_id,
-    'name': 'License_Plate'}
-    }
-
     # Specify the number of classes that the model will predict
     num_classes = 1
     label_id_offset = 1
@@ -184,7 +169,7 @@ def main():
 
     for train_image, bbox in zip(train_images, train_bboxes):
         # convert training image to tensor, add batch dimension, and add to list
-        train_image_tensors.append(tf.expand_dims(tf.convert_to_tensor(train_image, dtype=tf.float32)/255., axis=0))
+        train_image_tensors.append(tf.expand_dims(tf.convert_to_tensor(train_image/255., dtype=tf.float32), axis=0))
         
         # convert numpy array to tensor, then add to list
         gt_box_tensors.append(tf.convert_to_tensor(bbox, dtype=tf.float32))
@@ -207,7 +192,7 @@ def main():
     tmp_prediction_dict = model.predict(tmp_image, tmp_shapes)
 
     # postprocess the predictions into final detections
-    last_tune_layer=len(model.trainable_variables) //4 #30
+    last_tune_layer=len(model.trainable_variables) //5 
     to_fine_tune = [model.trainable_variables[layer_num] for layer_num in range(last_tune_layer)]
 
     # # set the optimizer and pass in the learning_rate
@@ -233,12 +218,13 @@ def main():
         mlflow.log_param("optimizer", optimizer.get_config())
         mlflow.autolog()
         
-    print('Start fine-tuning!', flush=True)
-    train_loss_results = []
+    log.info('Start fine-tuning!')
+ 
     tf.keras.backend.set_learning_phase(True)
+    total_train_images = len(train_images)
     for _epoch in range(cfg.TRAIN.NUM_EPOCHS):
         # Grab keys for a random subset of examples
-        all_keys = list(range(len(train_images)))
+        all_keys = list(range(total_train_images))
         random.shuffle(all_keys) 
         example_keys = all_keys[:cfg.TRAIN.BATCH_SIZE]
 
@@ -262,7 +248,6 @@ def main():
         _loss = total_loss.numpy()
         _lr = optimizer.learning_rate.numpy()
 
-        train_loss_results.append(_loss)
         mlflow.log_metric("loss", _loss, step=_epoch)
         mlflow.log_metric("lr", _lr, step=_epoch)
 
@@ -270,9 +255,20 @@ def main():
         current_learning_rate = lr_schedule(_epoch)
         optimizer.learning_rate.assign(current_learning_rate)
         log.info(f'EPOCH {_epoch}/{cfg.TRAIN.NUM_EPOCHS} - {_loss=} - {_lr=}')
-    print('Done fine-tuning!')
+        
+    log.info('Done fine-tuning!')
+
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None, 640, 640, 3], dtype=tf.float32)])
+    def detect_fn(input_tensor):
+        preprocessed_image, shapes = model.preprocess(input_tensor)
+        prediction_dict = model.predict(preprocessed_image, shapes)
+
+        # use the detection model's postprocess() method to get the the final detections
+        detections = model.postprocess(prediction_dict, shapes)
+        return detections
     # Save with signatures
     tf.saved_model.save(model, f'{OUTPUTS_DIRS}', signatures={"serving_default": detect_fn})
+    log.info('Model saved!')
 
 if __name__ == '__main__':
     main()
