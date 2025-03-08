@@ -15,6 +15,8 @@ import mlflow
 import numpy as np
 from dotenv import load_dotenv
 from hydra import compose, initialize
+from mlflow.models import ModelSignature
+from mlflow.types import Schema, TensorSpec
 
 # import module for building the detection model
 from object_detection.builders import model_builder
@@ -107,18 +109,21 @@ def train_step_fn(image_list,
     return total_loss
 
 def build_model(num_classes:int, pretrain_model_path:Path):
+    tf.keras.backend.clear_session()
     # define the path to the .config file for ssd resnet 50 v1 640x640
     pipeline_config = '/opt/models/research/object_detection/configs/tf2/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.config'
 
     # Load the configuration file into a dictionary
     configs = config_util.get_configs_from_pipeline_file(pipeline_config) 
     model_config = configs['model']
+
     # Modify the number of classes from its default of 90
     model_config.ssd.num_classes = num_classes
-
     # Freeze batch normalization
     model_config.ssd.freeze_batchnorm = True
+
     model = model_builder.build(model_config=model_config,is_training=True)
+
     tmp_box_predictor_checkpoint = tf.train.Checkpoint(
    _base_tower_layers_for_heads = model._box_predictor._base_tower_layers_for_heads,
    _box_prediction_head = model._box_predictor._box_prediction_head
@@ -126,7 +131,7 @@ def build_model(num_classes:int, pretrain_model_path:Path):
     tmp_model_checkpoint = tf.compat.v2.train.Checkpoint (
     _feature_extractor=model._feature_extractor,
     _box_predictor = tmp_box_predictor_checkpoint)
-    checkpoint_path =  str(PRETRAIN_MODEL_PATH / 'checkpoint/ckpt-0')
+    checkpoint_path =  str(pretrain_model_path / 'checkpoint/ckpt-0')
 
     # Define a checkpoint that sets `model` to the temporary model checkpoint
     checkpoint = tf.train.Checkpoint(
@@ -134,12 +139,25 @@ def build_model(num_classes:int, pretrain_model_path:Path):
     )
     # Restore the checkpoint to the checkpoint path
     checkpoint.restore(save_path=checkpoint_path)
+    
+    # Run a dummy image to generate the model variables
+    # use the detection model's `preprocess()` method and pass a dummy image
+    dummy_img = tf.zeros([1,640,640,3])
+    tmp_image, tmp_shapes = model.preprocess(dummy_img)
+
+    # run a prediction with the preprocessed image and shapes
+    tmp_prediction_dict = model.predict(tmp_image, tmp_shapes)
+
+    # postprocess the predictions into final detections
+    model.postprocess(tmp_prediction_dict, tmp_shapes)
+
+    # reset the model 
+    model.provide_groundtruth(groundtruth_boxes_list=[], groundtruth_classes_list=[])
     return model
 
 def main()->None:
-    load_dotenv()
-
     log = get_logger(__name__, log_level=logging.INFO)
+    load_dotenv()
     found_gpu = tf.config.list_physical_devices('GPU')
     if not found_gpu:
         log.error("No GPU found")
@@ -147,16 +165,20 @@ def main()->None:
     log.info(f'{found_gpu=}, {tf.__version__=}')
 
     label_map = {
-        'License_Plate':1
+        'licence':1
     }
+    DATASET_DIRS = Path(cfg.DATASET.DATASET_DIR)
+    DATASET_DIRS.mkdir(parents=True, exist_ok=True)
 
-    prepare_train_dataset = AnnotationProcessor(annotation_file=TRAIN_ANNOT_FILE_PATH)
-
-    train_images, train_class_ids, train_bboxes  = prepare_train_dataset.process_annotations(image_dir=TRAIN_DIR, label_map=label_map)
-    prepare_valid_dataset = AnnotationProcessor(annotation_file=VALID_ANNOT_FILE_PATH)
-
-    valid_images, valid_class_ids, valid_bboxes  = prepare_valid_dataset.process_annotations(image_dir=VALIDATION_DIR, label_map=label_map)
-    train_images.extend(valid_images), train_class_ids.extend(valid_class_ids), train_bboxes.extend(valid_bboxes)
+    TRAIN_DIR = DATASET_DIRS / 'car-plate-detection'
+    TRAIN_IMG_DIR = DATASET_DIRS /'car-plate-detection'/'images'
+    XML_ANNOT_DIR_PATH = TRAIN_DIR / 'annotations'
+    
+    train_images, _, train_bboxes  = AnnotationProcessor(annotation_file= XML_ANNOT_DIR_PATH).process_annotations_xml(image_dir=TRAIN_IMG_DIR, 
+                                                                                                                      label_map=label_map)
+    # valid_images, _, valid_bboxes  = AnnotationProcessor(annotation_file=VALID_ANNOT_FILE_PATH).process_annotations(image_dir=VALIDATION_DIR, label_map=label_map)
+    # train_images.extend(valid_images) 
+    # train_bboxes.extend(valid_bboxes)
 
     # Specify the number of classes that the model will predict
     num_classes = 1
@@ -169,7 +191,7 @@ def main()->None:
 
     for train_image, bbox in zip(train_images, train_bboxes):
         # convert training image to tensor, add batch dimension, and add to list
-        train_image_tensors.append(tf.expand_dims(tf.convert_to_tensor(train_image/255., dtype=tf.float32), axis=0))
+        train_image_tensors.append(tf.expand_dims(train_image, axis=0))
         
         # convert numpy array to tensor, then add to list
         gt_box_tensors.append(tf.convert_to_tensor(bbox, dtype=tf.float32))
@@ -183,80 +205,80 @@ def main()->None:
 
 
     model = build_model(num_classes, PRETRAIN_MODEL_PATH)
-    # Run a dummy image to generate the model variables
-    # use the detection model's `preprocess()` method and pass a dummy image
-    dummy_img = tf.zeros([1,640,640,3])
-    tmp_image, tmp_shapes = model.preprocess(dummy_img)
-
-    # run a prediction with the preprocessed image and shapes
-    tmp_prediction_dict = model.predict(tmp_image, tmp_shapes)
-
-    # postprocess the predictions into final detections
-    last_tune_layer=len(model.trainable_variables) //5 
+    
+    last_tune_layer=5#len(model.trainable_variables)//5 
     to_fine_tune = [model.trainable_variables[layer_num] for layer_num in range(last_tune_layer)]
 
     # # set the optimizer and pass in the learning_rate
-    decay_steps = 50
-    decay_rate = 0.96
-
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=cfg.TRAIN.LEARNING_RATE,
-        decay_steps=decay_steps,
-        decay_rate=decay_rate,
+        decay_steps=cfg.TRAIN.OPTIMIZER.DECAY_STEPS,
+        decay_rate=cfg.TRAIN.OPTIMIZER.DECAY_RATE,
         staircase=True
     )
 
-    optimizer = tf.keras.optimizers.SGD(
+    optimizer = tf.keras.optimizers.Adam(
         learning_rate=cfg.TRAIN.LEARNING_RATE, 
-        momentum=0.9,
+        # momentum=0.9,
     )
-
-    with mlflow.start_run():
-        mlflow.log_param("lr", cfg.TRAIN.LEARNING_RATE)
-        mlflow.log_param("batch_size",cfg.TRAIN.BATCH_SIZE)
-        mlflow.log_param("EPOCHS",cfg.TRAIN.NUM_EPOCHS)
-        mlflow.log_param("optimizer", optimizer.get_config())
-        mlflow.autolog()
-        
-    log.info('Start fine-tuning!')
- 
+    
     tf.keras.backend.set_learning_phase(True)
-    total_train_images = len(train_images)
-    for _epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        # Grab keys for a random subset of examples
-        all_keys = list(range(total_train_images))
-        random.shuffle(all_keys) 
-        example_keys = all_keys[:cfg.TRAIN.BATCH_SIZE]
-
-        # Get the ground truth
-        gt_boxes_list = [gt_box_tensors[key] for key in example_keys]
-        gt_classes_list = [gt_classes_one_hot_tensors[key] for key in example_keys]
-
-        # get the images
-        image_tensors = [train_image_tensors[key] for key in example_keys]
-
-        # Training step (forward pass + backwards pass)
-        total_loss = train_step_fn(image_tensors,
-                                gt_boxes_list,
-                                gt_classes_list,
-                                model,
-                                optimizer,
-                                to_fine_tune)
-
-        # if _epoch % 5 == 0:
-        # Presentation
-        _loss = total_loss.numpy()
-        _lr = optimizer.learning_rate.numpy()
-
-        mlflow.log_metric("loss", _loss, step=_epoch)
-        mlflow.log_metric("lr", _lr, step=_epoch)
-
-        # Update learning rate.
-        current_learning_rate = lr_schedule(_epoch)
-        optimizer.learning_rate.assign(current_learning_rate)
-        log.info(f'EPOCH {_epoch}/{cfg.TRAIN.NUM_EPOCHS} - {_loss=} - {_lr=}')
+    with mlflow.start_run():
+        mlflow.log_param("DECAY_STEPS", cfg.TRAIN.OPTIMIZER.DECAY_STEPS)
+        mlflow.log_param("DECAY_STEPS", cfg.TRAIN.OPTIMIZER.DECAY_STEPS)
+        mlflow.log_param("lr", cfg.TRAIN.LEARNING_RATE)
+        mlflow.log_param("batch_size", cfg.TRAIN.BATCH_SIZE)
+        mlflow.log_param("EPOCHS",  cfg.TRAIN.NUM_EPOCHS)
+        mlflow.log_param("optimizer", optimizer.get_config())
+    
+        log.info('Start fine-tuning!')
+        all_keys = list(range(len(train_images)))
         
-    log.info('Done fine-tuning!')
+        for _epoch in range(cfg.TRAIN.NUM_EPOCHS):
+            # Grab keys for a random subset of examples
+            random.shuffle(all_keys) 
+            example_keys = all_keys[:cfg.TRAIN.BATCH_SIZE]
+
+            # Get the ground truth
+            gt_boxes_list = [gt_box_tensors[key] for key in example_keys]
+            gt_classes_list = [gt_classes_one_hot_tensors[key] for key in example_keys]
+
+            # get the images
+            image_tensors = [train_image_tensors[key] for key in example_keys]
+
+            # Training step (forward pass + backwards pass)
+            total_loss = train_step_fn(image_tensors,
+                                    gt_boxes_list,
+                                    gt_classes_list,
+                                    model,
+                                    optimizer,
+                                    to_fine_tune)
+
+            # if _epoch % 5 == 0:
+            # Presentation
+            _loss = total_loss.numpy()
+            _lr = optimizer.learning_rate.numpy()
+
+            mlflow.log_metric("loss", _loss, step=_epoch)
+            mlflow.log_metric("lr", _lr, step=_epoch)
+            log.info(f'Epoch: {_epoch}/{cfg.TRAIN.NUM_EPOCHS}, Loss: {_loss:.4f}, Learning rate: {_lr:.4f}')
+            
+            # Update learning rate.
+            current_learning_rate = lr_schedule(_epoch)
+            optimizer.learning_rate.assign(current_learning_rate)
+
+        input_schema = Schema(
+            [
+                TensorSpec(np.dtype(np.float32), (-1, 640, 640, 3), "input"),
+            ]
+        )
+        signature = ModelSignature(inputs=input_schema)   
+        mlflow.tensorflow.log_model(
+            model, "model", signature=signature, keras_model_kwargs={"save_format": "keras"}
+        )
+
+        log.info('Done fine-tuning!')
+
 
     @tf.function(input_signature=[tf.TensorSpec(shape=[None, 640, 640, 3], dtype=tf.float32)])
     def detect_fn(input_tensor):
@@ -266,6 +288,7 @@ def main()->None:
         # use the detection model's postprocess() method to get the the final detections
         detections = model.postprocess(prediction_dict, shapes)
         return detections
+    
     # Save with signatures
     tf.saved_model.save(model, f'{OUTPUTS_DIRS}', signatures={"serving_default": detect_fn})
     log.info('Model saved!')

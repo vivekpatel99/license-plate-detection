@@ -1,8 +1,8 @@
 
 DATASET:
   DATASET_DIR: 'datasets'
-  # DATASET_NAME: 'License-Plate-Recognition-8'
-  DATASET_NAME: 'license-plate-detection-2'
+  DATASET_NAME: 'License-Plate-Recognition-8'
+  # DATASET_NAME: 'license-plate-detection-2'
   ANNOTATION_FILE_NAME: '_annotations.csv'
   BONE_FRACTURE_DETECTION_DATASET_URL: 'https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e/dataset/8#'
 
@@ -17,14 +17,13 @@ PRETRAIN_MODEL:
   PATH: 'pre-trained-models/${PRETRAIN_MODEL.MODEL_NAME}'
 
 TRAIN:
-  BATCH_SIZE: 10
-  NUM_EPOCHS: 250
+  BATCH_SIZE: 8
+  NUM_EPOCHS: 150
   LEARNING_RATE: 0.0001
   IMG_SIZE: 640
   OPTIMIZER:
-    DECAY_STEPS: 30
-    DECAY_RATE: 0.96
-
+    DECAY_STEPS: 35
+    DECAY_RATE: 0.90
 
 OUTPUTS:
   OUPUT_DIR: 'exported_models/my_${PRETRAIN_MODEL.MODEL_NAME}'

@@ -4,7 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from myutils.bounding_box_funcs import convert_coordinates_for_plot
+from myutils.bounding_box_funcs import normalize_coordinates
 
 
 def plot_random_images_bbox(*, image_paths:np.ndarray, class_ids:np.ndarray, bboxes:np.ndarray, class_map:dict, NUM_IMAGES_DISPLAY:int=9) -> None:
@@ -22,7 +22,7 @@ def plot_random_images_bbox(*, image_paths:np.ndarray, class_ids:np.ndarray, bbo
 
     [x_min, y_min, x_max, y_max] = bboxes[idx][0]
    
-    coords  = convert_coordinates_for_plot(img_height=img_height, img_width=img_width, bbox= [x_min, y_min, x_max, y_max], plot=True)
+    coords  = normalize_coordinates(img_height=img_height, img_width=img_width, bbox= [x_min, y_min, x_max, y_max], plot=True)
     ymin, xmin, ymax, xmax = coords[0]
     # print(class_ids[idx])
     ax.set_title(class_ids[idx])

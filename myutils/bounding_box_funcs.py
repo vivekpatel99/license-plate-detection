@@ -2,7 +2,7 @@
 import numpy as np
 
 
-def convert_coordinates_for_plot(*,img_height, img_width, bbox, plot=False)->  list:
+def normalize_coordinates(*,img_height, img_width, bbox)->  list:
   """
   Convert bounding box coordinates to normalized values
   between 0 and 1.
@@ -19,16 +19,8 @@ def convert_coordinates_for_plot(*,img_height, img_width, bbox, plot=False)->  l
   # Normalize bounding box coordinates
   xmin = bbox[0] / img_width
   ymin = bbox[1] / img_height
+  
   xmax = bbox[2] / img_width
   ymax = bbox[3] / img_height
-
-  if plot:
-    """
-    Clip the bounding box coordinates to the image boundaries.
-    """
-    xmin = int(max(0, xmin * img_width))  # Clip to 0
-    ymin = int(max(0, ymin * img_height)) # Clip to 0
-    xmax = int(min(img_width, xmax * img_width)) # Clip to image width
-    ymax = int(min(img_height, ymax * img_height))# Clip to image height
 
   return [ymin, xmin, ymax, xmax] #.reshape(1, 4)
