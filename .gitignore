@@ -181,3 +181,4 @@ mlruns/*
 _datasets
 ANPR-384/
 __datasets/
+kaggle.json

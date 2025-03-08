@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tqdm
 from tqdm import tqdm
 
 from myutils.bounding_box_funcs import normalize_coordinates
@@ -130,7 +129,7 @@ class AnnotationProcessor:
         return xmin,ymin,xmax,ymax
 
     def process_annotations_xml(self, image_dir:Path, label_map:dict):
-        path = self.annotation_file.glob('*.xml') 
+        path = list(self.annotation_file.glob('*.xml')) 
         for filename in tqdm(path):
             image_path = image_dir / f'{filename.stem}.png' # Construct full image path
             try:
@@ -155,11 +154,6 @@ class AnnotationProcessor:
                     ymin = int(labels_info.find('ymin').text)
                     ymax = int(labels_info.find('ymax').text)
 
-                    # xmin, ymin, xmax, ymax = self.rescale_coord_to_dst_img_size(xmin, ymin, xmax, ymax, original_width, original_height)
-
-                    # Normalize bounding box coordinates
-                    # converted_cords = normalize_coordinates(img_height=self.target_size, img_width=self.target_size, 
-                    #                                             bbox = [xmin, ymin, xmax, ymax])
                     converted_cords = normalize_coordinates(img_height=original_height, 
                                                             img_width=original_width, 
                                                             bbox = [xmin, ymin, xmax, ymax])

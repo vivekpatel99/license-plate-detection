@@ -37,6 +37,14 @@ The model training process is detailed in `02_model_training.ipynb` [notebook](l
 4. setup .env file with kaggle keys to download dataset directly (move it into datasets dir)
 5. open conf/config.yaml for configuring parameters and pathth
 
+### My Hardware Info
+
+To run this project smoothly, consider the following hardware:
+
+- **CPU**: AMD Ryzen 5900X
+- **GPU**: NVIDIA GeForce RTX 3080
+- **RAM**: 32 GB DDR4
+
 
 ## 📈 Results
 ![alt text](readme-assets/training_result.png)
