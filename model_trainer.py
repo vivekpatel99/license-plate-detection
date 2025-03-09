@@ -46,7 +46,7 @@ CHECKPOINT_PATH.mkdir(parents=True, exist_ok=True)
 # decorate with @tf.function for faster training
 @tf.function
 def train_step_fn(
-    image_list,
+    image_batch,
     groundtruth_boxes_list,
     groundtruth_classes_list,
     model,
@@ -54,20 +54,20 @@ def train_step_fn(
     vars_to_fine_tune,
 ):
     with tf.GradientTape() as tape:
-        preprocessed_image_list = []
-        true_shape_list = []
-
         # Preprocess the images
-        for img in image_list:
-            processed_img, true_shape = model.preprocess(img)
-            preprocessed_image_list.append(processed_img)
-            true_shape_list.append(true_shape)
+        # for img in image_list:
+        #     processed_img, true_shape = model.preprocess(img)
+        #     preprocessed_image_list.append(processed_img)
+        #     true_shape_list.append(true_shape)
+        # Process entire batch at once (no list iteration)
+        preprocessed_images, true_shapes = model.preprocess(image_batch)
+        # preprocessed_image_tensor = tf.concat(preprocessed_image_list, axis=0)
+        # true_shape_tensor = tf.concat(true_shape_list, axis=0)
 
-        preprocessed_image_tensor = tf.concat(preprocessed_image_list, axis=0)
-        true_shape_tensor = tf.concat(true_shape_list, axis=0)
-
+        # Directly call model with training=True
+        prediction_dict = model(preprocessed_images, training=True)
         # Make a prediction
-        prediction_dict = model.predict(preprocessed_image_tensor, true_shape_tensor)
+        # prediction_dict = model.predict(preprocessed_image_tensor, true_shape_tensor)
 
         # Provide the ground truth to the model
         model.provide_groundtruth(
@@ -76,7 +76,7 @@ def train_step_fn(
         )
 
         # Calculate the total loss (sum of both losses)
-        losses_dict = model.loss(prediction_dict, true_shape_tensor)
+        losses_dict = model.loss(prediction_dict, true_shapes)
 
         total_loss = (
             losses_dict["Loss/localization_loss"]
@@ -139,6 +139,15 @@ def build_model(num_classes: int, pretrain_model_path: Path):
     model.provide_groundtruth(groundtruth_boxes_list=[], groundtruth_classes_list=[])
     return model
 
+def add_offset_and_one_hot_encode(img, label, bbox):
+    zero_indexed_groundtruth_classes = tf.convert_to_tensor(
+        np.ones(shape=[bbox.shape[0]], dtype=np.int32) - 1
+    )
+    one_label= tf.one_hot(zero_indexed_groundtruth_classes, 1)
+    return img, one_label, bbox
+
+
+
 
 def main() -> None:
     log = get_logger(__name__, log_level=logging.INFO)
@@ -151,36 +160,15 @@ def main() -> None:
 
     label_map = {"licence": 1}
 
-    train_images, _, train_bboxes = AnnotationProcessor(
-        annotation_file=XML_ANNOT_DIR_PATH
-    ).process_annotations_xml(image_dir=TRAIN_IMG_DIR, label_map=label_map)
+    train_ds = prepapre_datasets(label_map)
+    log.info('dataset are prepared as tensorflow dataset')
+
     # Specify the number of classes that the model will predict
     num_classes = 1
-    label_id_offset = 1
-    train_image_tensors = []
-
-    # lists containing the one-hot encoded classes and ground truth boxes
-    gt_classes_one_hot_tensors = []
-    gt_box_tensors = []
-
-    for train_image, bbox in tqdm(zip(train_images, train_bboxes)):
-        # convert training image to tensor, add batch dimension, and add to list
-        train_image_tensors.append(tf.expand_dims(train_image, axis=0))
-
-        # convert numpy array to tensor, then add to list
-        gt_box_tensors.append(tf.convert_to_tensor(bbox, dtype=tf.float32))
-
-        # apply offset to to have zero-indexed ground truth classes
-        zero_indexed_groundtruth_classes = tf.convert_to_tensor(
-            np.ones(shape=[bbox.shape[0]], dtype=np.int32) - label_id_offset
-        )
-        # do one-hot encoding to ground truth classes
-        gt_classes_one_hot_tensors.append(
-            tf.one_hot(zero_indexed_groundtruth_classes, num_classes)
-        )
 
     model = build_model(num_classes, PRETRAIN_MODEL_PATH)
-
+    log.info('model is built')
+    
     last_tune_layer = len(model.trainable_variables) // 5
     to_fine_tune = [
         model.trainable_variables[layer_num] for layer_num in range(last_tune_layer)
@@ -209,29 +197,25 @@ def main() -> None:
         mlflow.log_param("optimizer", optimizer.get_config())
 
         log.info("Start fine-tuning!")
-        all_keys = list(range(len(train_images)))
 
         for _epoch in range(cfg.TRAIN.NUM_EPOCHS):
-            # Grab keys for a random subset of examples
-            random.shuffle(all_keys)
-            example_keys = all_keys[: cfg.TRAIN.BATCH_SIZE]
-
-            # Get the ground truth
-            gt_boxes_list = [gt_box_tensors[key] for key in example_keys]
-            gt_classes_list = [gt_classes_one_hot_tensors[key] for key in example_keys]
-
-            # get the images
-            image_tensors = [train_image_tensors[key] for key in example_keys]
-
-            # Training step (forward pass + backwards pass)
-            total_loss = train_step_fn(
-                image_tensors,
-                gt_boxes_list,
-                gt_classes_list,
-                model,
-                optimizer,
-                to_fine_tune,
-            )
+            total_loss = 0
+            for batch_num, (images, gt_classes, gt_boxes) in enumerate(train_ds):
+                # print shape of images, gt_classes, gt_boxes
+                print(images.shape, gt_classes.shape, gt_boxes.shape)
+                # Training step (forward pass + backwards pass)
+                gt_boxes_list = gt_boxes.to_list()
+                tensor_box_list = []
+                for box_list in gt_boxes_list:
+                    tensor_box_list.append(tf.convert_to_tensor(box_list))
+                total_loss = train_step_fn(
+                    images,
+                    tensor_box_list,
+                    list(gt_classes.numpy()),
+                    model,
+                    optimizer,
+                    to_fine_tune,
+                )
 
             # if _epoch % 5 == 0:
             # Presentation
@@ -279,6 +263,53 @@ def main() -> None:
         model, f"{OUTPUTS_DIRS}", signatures={"serving_default": detect_fn}
     )
     log.info("Model saved!")
+
+
+def prepapre_datasets(label_map):
+    def load_image_into_tf_tensor(path):
+        """Load an image from file into a numpy array.
+
+        Puts image into numpy array to feed into tensorflow graph.
+        Note that by convention we put it into a numpy array with shape
+        (height, width, channels), where channels=3 for RGB.
+
+        Args:
+        path: a file path.
+
+        Returns:
+        uint8 numpy array with shape (img_height, img_width, 3)
+        """
+        # Read image
+        image = tf.io.read_file(path)
+        image = tf.image.decode_jpeg(image, channels=3)
+        return tf.image.resize(image, (640, 640))
+
+    def load_dataset(image_path, classes, bbox):
+        image = load_image_into_tf_tensor(image_path)
+        zero_indexed_groundtruth_classes = tf.convert_to_tensor(
+        classes - 1)
+        one_label= tf.one_hot(zero_indexed_groundtruth_classes, 1)
+        return image, one_label, bbox
+    
+    image_paths, train_claass_ids, train_bboxes = AnnotationProcessor(
+        annotation_file=XML_ANNOT_DIR_PATH
+    ).process_annotations_xml(image_dir=TRAIN_IMG_DIR, label_map=label_map,plot=False)
+
+    ragged_bbox = tf.ragged.constant(train_bboxes, dtype=tf.float32)
+    ragged_classes = tf.ragged.constant(train_claass_ids)
+    ragged_image_paths = tf.ragged.constant(image_paths)
+
+    train_data = tf.data.Dataset.from_tensor_slices(
+        (ragged_image_paths, ragged_classes, ragged_bbox)
+    )
+    train_ds = train_data.map(load_dataset, num_parallel_calls=tf.data.AUTOTUNE)
+    
+    train_ds = train_ds\
+        .shuffle(buffer_size = len(image_paths))\
+        .ragged_batch(cfg.TRAIN.BATCH_SIZE, drop_remainder=True)\
+        .prefetch(tf.data.AUTOTUNE)
+        
+    return train_ds
 
 
 if __name__ == "__main__":

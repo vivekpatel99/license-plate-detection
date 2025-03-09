@@ -17,10 +17,11 @@ def normalize_coordinates(*,img_height, img_width, bbox)->  list:
     np.ndarray: Normalized bounding box coordinates in the format [[y_min, x_min, y_max, x_max]].
   """
   # Normalize bounding box coordinates
+  # adj_xmin, adj_ymin, adj_xmax, adj_ymax]
   xmin = bbox[0] / img_width
   ymin = bbox[1] / img_height
   
   xmax = bbox[2] / img_width
   ymax = bbox[3] / img_height
 
-  return [ymin, xmin, ymax, xmax] #.reshape(1, 4)
+  return [ymin, xmin, ymax, xmax] 

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from regex import T
 from tqdm import tqdm
 
 from myutils.bounding_box_funcs import normalize_coordinates
@@ -22,7 +23,7 @@ class AnnotationProcessor:
         self.bboxes = []
         self.target_size = image_size
 
-    def load_image_into_numpy_array(self, path):
+    def load_image_into_tf_tensor(self, path):
         """Load an image from file into a numpy array.
 
         Puts image into numpy array to feed into tensorflow graph.
@@ -41,7 +42,9 @@ class AnnotationProcessor:
         
         # Resize with padding to preserve aspect ratio
         # return tf.image.resize_with_pad(image, self.target_size, self.target_size)
-        return tf.cast(image, tf.float32) 
+        # return tf.keras.preprocessing.image.smart_resize(image, (self.target_size, self.target_size))
+        return tf.image.resize(image, (self.target_size, self.target_size))
+        # return tf.cast(image, tf.float32) 
 
 
     def process_annotations(self, image_dir:Path, label_map:dict):
@@ -62,7 +65,7 @@ class AnnotationProcessor:
         for image_name in tqdm(uni_list[:200]):  # Iterate over unique images
             image_path = image_dir / image_name  # Construct full image path
             try:
-                img = self.load_image_into_numpy_array(str(image_path))
+                img = self.load_image_into_tf_tensor(str(image_path))
                 
                 if img is None:
                     self.log.warning(f"Image not found at {image_path}")
@@ -79,16 +82,23 @@ class AnnotationProcessor:
                     original_width = int(row['width'])
                     original_height = int(row['height'])
 
-                    xmin, ymin, xmax, ymax = self.rescale_coord_to_dst_img_size(xmin, ymin, xmax, ymax, original_width, original_height)
+                    # xmin, ymin, xmax, ymax = self.rescale_coord_to_dst_img_size(xmin, ymin, xmax, ymax, original_width, original_height)
+                    x_scale = self.target_size / original_width
+                    y_scale = self.target_size / original_height
+                    
+                    adj_xmin = xmin * x_scale
+                    adj_ymin = ymin * y_scale
+                    adj_xmax = xmax * x_scale
+                    adj_ymax = ymax * y_scale
 
                     # Normalize bounding box coordinates
                     # converted_cords = convert_coordinates_for_plot(img_height=self.target_size, img_width=self.target_size, 
                     #                                                bbox = [xmin, ymin, xmax, ymax])
-                    converted_cords = normalize_coordinates(img_height=original_width, 
-                                                                   img_width=original_height, 
-                                                                   bbox = [xmin, ymin, xmax, ymax])
+                    norm_cords = normalize_coordinates(img_height=self.target_size, 
+                                                            img_width=self.target_size, 
+                                                            bbox = [adj_xmin, adj_ymin, adj_xmax, adj_ymax])
                     labels.append(label_map[row['class']] )
-                    cords.append(converted_cords)
+                    cords.append(norm_cords)
                 # if is_small_img:
                 #     continue
                 self.class_ids.append(labels)
@@ -127,18 +137,24 @@ class AnnotationProcessor:
             xmax = int(xmax * scale) + dx
             ymax = int(ymax * scale) + dy
         return xmin,ymin,xmax,ymax
+    def adjust_boxes(boxes, original_size, target_size):
+        scale_x = target_size[1] / original_size[1]
+        scale_y = target_size[0] / original_size[0]
+        return boxes * [scale_y, scale_x, scale_y, scale_x]
 
-    def process_annotations_xml(self, image_dir:Path, label_map:dict):
-        path = list(self.annotation_file.glob('*.xml')) 
-        for filename in tqdm(path):
+    def process_annotations_xml(self, image_dir:Path, label_map:dict, plot=True):   
+        path = list(self.annotation_file.glob('*.xml'))
+        for filename in tqdm(path[:200]):
             image_path = image_dir / f'{filename.stem}.png' # Construct full image path
             try:
-                img = self.load_image_into_numpy_array(str(image_path))
-                
-                if img is None:
-                    self.log.warning(f"Image not found at {image_path}")
-                    continue  # Skip to the next image
-
+                if plot:
+                    img = self.load_image_into_tf_tensor(str(image_path))
+                    if img is None:
+                        self.log.warning(f"Image not found at {image_path}")
+                        continue  # Skip to the next image
+                else:
+                    img = str(image_path)
+                    
                 info = xet.parse(filename)
                 root = info.getroot()
                 img_size_info =  root.find('size')
@@ -154,12 +170,23 @@ class AnnotationProcessor:
                     ymin = int(labels_info.find('ymin').text)
                     ymax = int(labels_info.find('ymax').text)
 
-                    converted_cords = normalize_coordinates(img_height=original_height, 
-                                                            img_width=original_width, 
-                                                            bbox = [xmin, ymin, xmax, ymax])
+                    #  Original Box → Resize Image → Adjust Box → Normalize
+                    x_scale = self.target_size / original_width
+                    y_scale = self.target_size / original_height
+                    
+                    adj_xmin = xmin * x_scale
+                    adj_ymin = ymin * y_scale
+                    adj_xmax = xmax * x_scale
+                    adj_ymax = ymax * y_scale
+                    
+                    norm_cords = normalize_coordinates(img_height=self.target_size, 
+                                                            img_width=self.target_size, 
+                                                            bbox = [adj_xmin, adj_ymin, adj_xmax, adj_ymax])
+
                     cls = member_object.find('name').text
-                    labels.append(label_map[cls] )
-                    cords.append(converted_cords)
+                    labels.append(label_map[cls])
+                    cords.append(norm_cords)
+                    # self.images.append(img)
                     # cords.append([ymin, xmin, ymax, xmax])
  
                 self.class_ids.append(labels)
@@ -168,6 +195,5 @@ class AnnotationProcessor:
 
             except Exception as e:
                 self.log.error(f"Processing image {image_path}: {e}")
-                
-        return self.images, self.class_ids, self.bboxes
 
+        return self.images, self.class_ids, self.bboxes

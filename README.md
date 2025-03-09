@@ -46,5 +46,42 @@ To run this project smoothly, consider the following hardware:
 - **RAM**: 32 GB DDR4
 
 
-## 📈 Results
-![alt text](readme-assets/training_result.png)
+## 🚀 Detection Results: A Visual Showcase
+
+Dive into the performance of our object detection model with these compelling visualizations. Each image demonstrates the model's ability to locate and classify objects, juxtaposed with the ground truth for a clear comparison.
+
+**Key Visual Elements:**
+
+* **<span style="color:green;">Green Bounding Boxes:</span>** Represent the model's predicted object locations.
+* **<span style="color:red;">Red Bounding Boxes:</span>** Indicate the actual ground truth object locations.
+
+* **Title Metrics:** Each image is labeled with:
+    * **Score:** The model's confidence in its prediction (higher is better).
+    * **IoU (Intersection over Union):** A measure of the overlap between predicted and ground truth boxes (closer to 1.0 is better).
+
+**Visual Results:**
+
+![Object Detection Performance](readme-assets/detection_results.png)
+
+**Interactive Insights:**
+
+To better understand the nuances of the model's performance, consider the following:
+
+* **High Score, High IoU:** These images showcase the model's precision, indicating accurate object localization and high confidence.
+* **High Score, Lower IoU:** These cases might reveal instances where the model confidently detects an object but with slight localization errors.
+* **Lower Score, Lower IoU:** These instances indicate the model's challenges in accurately detecting or localizing objects.
+
+**Analysis:**
+
+The results demonstrate the model's ability to accurately find the objects. The IoU values show that the model is able to accurately localize the objects.
+
+**Further Exploration:**
+
+To delve deeper into the model's performance, consider:
+
+* Examining the model's performance on various object sizes and complexities.
+* Analyzing the model's failure cases to identify potential areas for improvement.
+
+**Note:**
+
+The provided image showcases a snapshot of the model's performance on a subset of the test dataset. For a comprehensive evaluation, consider running the model on the entire test set.
