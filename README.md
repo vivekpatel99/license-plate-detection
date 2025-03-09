@@ -50,7 +50,23 @@ To run this project smoothly, consider the following hardware:
 
 ## 🚀 Detection Results: A Visual Showcase
 
-Dive into the performance of our object detection model with these compelling visualizations. Each image demonstrates the model's ability to locate and classify objects, juxtaposed with the ground truth for a clear comparison.
+Dive into the performance of our object detection model with these compelling visualizations. Each image demonstrates the model's ability to locate and classify objects.
+The minimum loss achieved on my hardware was approximately 0.0264, using the following hyperparameters:
+```Python
+batch_size = 8
+EPOCHS = 250
+learning_rate = 1e-4
+decay_steps = 30 
+decay_rate = 0.90
+
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+    initial_learning_rate=learning_rate,
+    decay_steps=decay_steps,
+    decay_rate=decay_rate,
+    staircase=True
+)
+
+```
 
 **Key Visual Elements:**
 
@@ -81,5 +97,5 @@ The results demonstrate the model's ability to accurately find the objects. The 
 
 To delve deeper into the model's performance, consider:
 
-* Examining the model's performance on various object sizes and complexities.
+* Try to minimize loss further down to `>0.001` (current loss is `0.0264`) with setting up proper data processing pipeline (`tf.data.Dataset`) and Hyper parameter tuning.
 * Analyzing the model's failure cases to identify potential areas for improvement.
