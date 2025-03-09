@@ -2,7 +2,7 @@
 ![alt text](readme-assets/dataset_overview.png)
 ## 📝 Project Overview
 
-The project uses license plate detection datasets from [robolfow](https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e).
+The project uses license plate detection datasets from [robolfow-license-plate-recognition](https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e) and [kaggle-car-plate-detection](https://www.kaggle.com/datasets/andrewmvd/car-plate-detection/data).
 * There are only 22 images for training, 12 validation and 16 for testing. therefore transfer learning is used with ssd_resnet50_v1_fpn_640x640 model from Tensorflow model garden.
 * [Tensorflow's Object detection API](https://github.com/tensorflow/models/tree/master/research/object_detection) is used to train model and visulize data.
 
