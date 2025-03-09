@@ -11,7 +11,8 @@ The project uses license plate detection datasets from [robolfow](https://univer
 ## 🚀 Key Features
 
 - Model used for transfer learning - [ssd_resnet50_v1_fpn_640x640](http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz) 
-- 
+- Model trained on Custom loop using `tf.GradientTape()`, for more information look into [2_model_training notebook](notebooks/02_model_training.ipynb)
+
 
 ## 🛠️ Technologies Used
 
@@ -29,13 +30,14 @@ The model training process is detailed in `02_model_training.ipynb` [notebook](l
 - Training pipeline
 - Evaluation metrics
 
+
 ## 🔧 Setup and Installation
 
 1. Clone the Repo
 2. Install vs code with [docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) and [devcontainer](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
 3. press `Ctrl+Shift+P` and select `Dev Containers: Rebuild and Reopen in Container`
 4. setup .env file with kaggle keys to download dataset directly (move it into datasets dir)
-5. open conf/config.yaml for configuring parameters and pathth
+5. open conf/config.yaml for configuring parameters and path
 
 ### My Hardware Info
 
@@ -81,7 +83,3 @@ To delve deeper into the model's performance, consider:
 
 * Examining the model's performance on various object sizes and complexities.
 * Analyzing the model's failure cases to identify potential areas for improvement.
-
-**Note:**
-
-The provided image showcases a snapshot of the model's performance on a subset of the test dataset. For a comprehensive evaluation, consider running the model on the entire test set.

@@ -1,6 +1,7 @@
 """Provides functions to create loggers."""
 
 import logging
+import os
 import sys
 from typing import Text, Union
 
@@ -24,6 +25,7 @@ def get_file_handler(log_file: str = "license-plate-recognition.log") -> logging
     Returns:
         logging.FileHandler which logs into a file.
     """
+    os.remove(log_file)
     file_handler = logging.FileHandler(log_file)
     formatter = logging.Formatter("%(asctime)s — %(name)s — %(levelname)s — %(message)s")
     file_handler.setFormatter(formatter)
