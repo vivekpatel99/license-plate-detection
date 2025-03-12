@@ -44,7 +44,7 @@ The model training process is detailed in `02_model_training.ipynb` [notebook](l
 To run this project smoothly, consider the following hardware:
 
 - **CPU**: AMD Ryzen 5900X
-- **GPU**: NVIDIA GeForce RTX 3080
+- **GPU**: NVIDIA GeForce RTX 3080 (with 10GB VRAM)
 - **RAM**: 32 GB DDR4
 
 
